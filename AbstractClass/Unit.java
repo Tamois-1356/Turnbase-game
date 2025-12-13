@@ -2,14 +2,11 @@ package AbstractClass;
 
 import Skills.Skill;
 import Status.StatusEffect;
-
+import AI.AIStrategy; // Import Strategy
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Core Unit class
- */
 public abstract class Unit {
     public String name;
     protected int maxHp;
@@ -20,6 +17,14 @@ public abstract class Unit {
 
     protected final List<StatusEffect> statuses = new ArrayList<>();
     protected final List<Skill> skills = new ArrayList<>();
+    
+    // AI Strategy Field
+    protected AIStrategy aiStrategy;
+
+    public interface UnitEventListener {
+        void onEvent(String message);
+    }
+    private UnitEventListener listener;
 
     public Unit(String name, int maxHp, int atk, int def) {
         this.name = name;
@@ -27,6 +32,23 @@ public abstract class Unit {
         this.hp = maxHp;
         this.atk = atk;
         this.def = def;
+    }
+
+    // AI Strategy Getter/Setter
+    public void setAIStrategy(AIStrategy strategy) {
+        this.aiStrategy = strategy;
+    }
+
+    public AIStrategy getAIStrategy() {
+        return aiStrategy;
+    }
+
+    public void setListener(UnitEventListener listener) {
+        this.listener = listener;
+    }
+
+    protected void log(String msg) {
+        if (listener != null) listener.onEvent(msg);
     }
 
     public String getName() { return name; }
@@ -44,28 +66,27 @@ public abstract class Unit {
             int absorbed = Math.min(shield, dmg);
             shield -= absorbed;
             dmg -= absorbed;
-            System.out.println("[shield] " + name + " absorbs " + absorbed);
+            log("[shield] " + name + " absorbs " + absorbed);
         }
         hp -= dmg;
         if (hp < 0) hp = 0;
-        System.out.println("[hit] " + name + " takes " + dmg + " dmg (HP " + hp + "/" + maxHp + ")");
+        log("[hit] " + name + " takes " + dmg + " dmg (HP " + hp + "/" + maxHp + ")");
     }
 
     public void heal(int amount) {
         if (!isAlive()) return;
         hp += amount;
         if (hp > maxHp) hp = maxHp;
-        System.out.println("[heal] " + name + " +" + amount + " HP");
+        log("[heal] " + name + " +" + amount + " HP");
     }
 
     public void addShield(int amount) {
         if (!isAlive()) return;
         shield += amount;
         if (shield > maxHp) shield = maxHp;
-        System.out.println("[shield] " + name + " gains " + amount + " shield (S:" + shield + ")");
+        log("[shield] " + name + " gains " + amount + " shield (S:" + shield + ")");
     }
 
-    // status management
     public void addStatus(StatusEffect s) {
         if (s == null) return;
         statuses.add(s);
@@ -74,7 +95,6 @@ public abstract class Unit {
 
     public void processTurnStartStatuses() {
         if (!isAlive()) return;
-        // copy to avoid modification during iteration
         for (StatusEffect s : List.copyOf(statuses)) s.onTurnStart(this);
         removeExpiredStatuses();
     }
@@ -96,7 +116,6 @@ public abstract class Unit {
         }
     }
 
-    // skills
     public void addSkill(Skill s) { if (s != null) skills.add(s); }
     public List<Skill> getSkills() { return skills; }
 
@@ -106,7 +125,7 @@ public abstract class Unit {
 
     public void basicAttack(Unit target) {
         if (!isAlive() || target == null || !target.isAlive()) return;
-        System.out.println(name + " uses Basic Attack on " + target.getName());
+        log(name + " uses Basic Attack on " + target.getName());
         target.takeDamage(atk);
     }
 
