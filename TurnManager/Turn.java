@@ -4,6 +4,7 @@ import AbstractClass.Unit;
 import Skills.PassiveSkill;
 import Skills.Skill;
 import UI.BattleConsoleUI;
+import UI.GameUI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -11,15 +12,24 @@ import java.util.concurrent.ExecutionException;
 public class Turn {
     private final List<Unit> teamA;
     private final List<Unit> teamB;
-    private final BattleConsoleUI ui;
+    private final GameUI ui;
     private final ActionExecutor actionExecutor;
     private int turnCounter = 1;
 
-    public Turn(List<Unit> teamA, List<Unit> teamB, BattleConsoleUI ui) {
+    public Turn(List<Unit> teamA, List<Unit> teamB, GameUI ui) {
         this.teamA = teamA;
         this.teamB = teamB;
         this.ui = ui;
         this.actionExecutor = new ActionExecutor(ui);
+        
+        setupUnitListeners(teamA);
+        setupUnitListeners(teamB);
+    }
+    
+    private void setupUnitListeners(List<Unit> team) {
+        for (Unit u : team) {
+            u.setListener(ui::logMessage);
+        }
     }
 
     public void startBattle() {
@@ -58,13 +68,11 @@ public class Turn {
             ui.setInstruction(">>> " + unit.getName() + "'s turn");
             ui.pause(300);
 
-            // Process turn start
             unit.processTurnStartStatuses();
             ui.updateTeams(teamA, teamB);
             ui.pause(200);
             if (!unit.isAlive()) continue;
 
-            // Passive skills
             for (Skill s : unit.getSkills()) {
                 if (s instanceof PassiveSkill passiveSkill) {
                     passiveSkill.onTurnStart(unit, actingTeam, defendingTeam);
@@ -74,7 +82,6 @@ public class Turn {
             ui.updateTeams(teamA, teamB);
             ui.pause(150);
 
-            // Execute action
             if (playerControlled) {
                 executePlayerAction(unit, actingTeam, defendingTeam);
             } else {
@@ -83,13 +90,11 @@ public class Turn {
 
             ui.pause(250);
             
-            // Process turn end
             unit.processTurnEndStatuses();
             unit.tickSkillCooldowns();
             ui.updateTeams(teamA, teamB);
             ui.pause(200);
 
-            // Check victory
             boolean anyA = teamA.stream().anyMatch(Unit::isAlive);
             boolean anyB = teamB.stream().anyMatch(Unit::isAlive);
             if (!anyA || !anyB) {
@@ -112,7 +117,8 @@ public class Turn {
                     actionExecutor.executeBasicAttack(unit, target);
                 }
             } else if (choice.type == BattleConsoleUI.ActionType.USE_SKILL) {
-                actionExecutor.executeSkill(unit, choice.skill, allies, enemies);
+                // Pass NULL target to trigger UI target selection
+                actionExecutor.executeSkill(unit, choice.skill, null, allies, enemies);
             }
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
@@ -120,27 +126,16 @@ public class Turn {
     }
 
     private void executeAIAction(Unit unit, List<Unit> allies, List<Unit> enemies) {
-        Skill readySkill = unit.getSkills().stream()
-            .filter(Skill::isReady)
-            .filter(s -> !(s instanceof PassiveSkill))
-            .findFirst()
-            .orElse(null);
-
-        Unit target = enemies.stream()
-            .filter(Unit::isAlive)
-            .findFirst()
-            .orElse(null);
-
-        if (target == null) return;
-
-        if (readySkill != null) {
-            ui.setInstruction(unit.getName() + " (AI) uses " + readySkill.getName());
-            actionExecutor.executeSkill(unit, readySkill, allies, enemies);
+        if (unit.getAIStrategy() != null) {
+            ui.setInstruction(unit.getName() + " is thinking...");
+            unit.getAIStrategy().executeTurn(unit, allies, enemies, actionExecutor);
         } else {
-            ui.setInstruction(unit.getName() + " (AI) attacks " + target.getName());
-            actionExecutor.executeBasicAttack(unit, target);
+            // Fallback (Zombie AI)
+            Unit target = enemies.stream().filter(Unit::isAlive).findFirst().orElse(null);
+            if (target != null) {
+                actionExecutor.executeBasicAttack(unit, target);
+            }
         }
-
         ui.pause(300);
     }
 }
