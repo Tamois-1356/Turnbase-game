@@ -4,15 +4,14 @@ import AbstractClass.Unit;
 import java.util.List;
 
 /**
- * ActiveSkill that runs a BiConsumer action (caster, target).
- * The lambda must implement the effect and call triggerCooldown() via this.triggerCooldown();
+ * ActiveSkill that runs a TriAction.
+ * Implements the specific behavior of a skill that can be 'used'.
  */
 public class ActiveSkill extends Skill {
-    // simple action; more advanced skills can override use()
     private final TriAction action;
 
     public interface TriAction {
-        void apply(ActiveSkill self, Unit caster, Unit target, java.util.List<Unit> allies, java.util.List<Unit> enemies);
+        void apply(ActiveSkill self, Unit caster, Unit target, List<Unit> allies, List<Unit> enemies);
     }
 
     public ActiveSkill(String name, int cooldown, TriAction action) {
@@ -20,10 +19,9 @@ public class ActiveSkill extends Skill {
         this.action = action;
     }
 
-    @Override
     public void use(Unit caster, Unit primaryTarget, List<Unit> allies, List<Unit> enemies) {
         if (!isReady()) {
-            System.out.println("[skill] " + name + " is on cooldown (" + cooldownLeft + ")");
+            // Can log this via return value or UI if needed, but keeping simple for now
             return;
         }
         action.apply(this, caster, primaryTarget, allies, enemies);

@@ -1,10 +1,8 @@
 package Skills;
 
-import AbstractClass.Unit;
-import java.util.List;
-
 /**
- * Base Skill API
+ * Base Skill API.
+ * Refactored to adhere to LSP: Generic Skills don't force a 'use' method.
  */
 public abstract class Skill {
     protected final String name;
@@ -22,10 +20,6 @@ public abstract class Skill {
     public boolean isReady() { return cooldownLeft == 0; }
 
     public void tickCooldown() { if (cooldownLeft > 0) cooldownLeft--; }
+    
     protected void triggerCooldown() { cooldownLeft = cooldown; }
-
-    /**
-     * use(caster, primaryTarget, alliesList, enemiesList)
-     */
-    public abstract void use(Unit caster, Unit primaryTarget, List<Unit> allies, List<Unit> enemies);
 }
