@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.swing.*;
 
-public class BattleConsoleUI extends JFrame {
+public class BattleConsoleUI extends JFrame implements GameUI { // Implements Interface
     private final TeamPanel teamAPanel;
     private final TeamPanel teamBPanel;
     private final HeaderPanel headerPanel;
@@ -45,18 +45,14 @@ public class BattleConsoleUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         
-        // --- BACKGROUND UPDATE START ---
-        // Custom panel with background image painting logic
         JPanel mainPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                // Load background using ImageLoader
                 ImageIcon bgIcon = ImageLoader.loadBackground();
                 if (bgIcon != null) {
                     g.drawImage(bgIcon.getImage(), 0, 0, getWidth(), getHeight(), this);
                 } else {
-                    // Fallback color
                     g.setColor(new Color(20, 20, 30));
                     g.fillRect(0, 0, getWidth(), getHeight());
                 }
@@ -67,9 +63,8 @@ public class BattleConsoleUI extends JFrame {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         mainPanel.setOpaque(true);
         
-        // Battle arena (transparent so background shows through)
         JPanel battleArena = new JPanel(new GridLayout(1, 2, 40, 0));
-        battleArena.setOpaque(false); // Make transparent
+        battleArena.setOpaque(false);
         battleArena.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
         
         battleArena.add(teamAPanel);
@@ -82,14 +77,17 @@ public class BattleConsoleUI extends JFrame {
         setVisible(true);
     }
     
+    @Override
     public void updateTurn(int turn) {
         SwingUtilities.invokeLater(() -> headerPanel.setTurn(turn));
     }
     
+    @Override
     public void setInstruction(String text) {
         SwingUtilities.invokeLater(() -> headerPanel.setInstruction(text));
     }
     
+    @Override
     public void updateTeams(List<Unit> teamA, List<Unit> teamB) {
         this.teamA = teamA;
         this.teamB = teamB;
@@ -99,10 +97,12 @@ public class BattleConsoleUI extends JFrame {
         });
     }
     
+    @Override
     public CompletableFuture<ActionChoice> requestAction(Unit unit) {
         return inputHandler.requestAction(unit, teamAPanel, this);
     }
     
+    @Override
     public CompletableFuture<Unit> requestTarget(List<Unit> validTargets, TargetType type) {
         List<TeamPanel> panels = new ArrayList<>();
         if (type == TargetType.ENEMY || type == TargetType.ANY) panels.add(teamBPanel);
@@ -113,6 +113,7 @@ public class BattleConsoleUI extends JFrame {
         return inputHandler.requestTarget(validTargets, type, panels);
     }
     
+    @Override
     public void showDamage(Unit target, int damage) {
         SwingUtilities.invokeLater(() -> {
             UnitCard card = findCardForUnit(target);
@@ -120,6 +121,7 @@ public class BattleConsoleUI extends JFrame {
         });
     }
     
+    @Override
     public void showHealing(Unit target, int healing) {
         SwingUtilities.invokeLater(() -> {
             UnitCard card = findCardForUnit(target);
@@ -127,11 +129,19 @@ public class BattleConsoleUI extends JFrame {
         });
     }
     
+    @Override
     public void showShield(Unit target, int shield) {
         SwingUtilities.invokeLater(() -> {
             UnitCard card = findCardForUnit(target);
             if (card != null) effectManager.showShield(card, shield);
         });
+    }
+
+    @Override
+    public void logMessage(String message) {
+        // For now, we print to console, but this satisfies SRP because the UI decides how to show it.
+        // You could later add a scrolling text log panel here.
+        System.out.println(message);
     }
     
     private UnitCard findCardForUnit(Unit unit) {
@@ -140,6 +150,7 @@ public class BattleConsoleUI extends JFrame {
         return teamBPanel.findCardForUnit(unit);
     }
     
+    @Override
     public void pause(int ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
     }
